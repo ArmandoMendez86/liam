@@ -1,0 +1,272 @@
+/* /pizzeria_pos/public/assets/css/main.css */
+
+/* Ajustar el cuerpo principal para ocupar el 100% del viewport menos el navbar */
+.pos-main-content {
+    height: calc(100vh - 56px);
+    /* 100% del viewport - altura del navbar */
+}
+
+.row {
+    height: 100%;
+}
+
+/* Columna de menú con scroll */
+.menu-column,
+.order-column {
+    height: 100%;
+    position: relative;
+}
+
+/* Columna Derecha (Pedido) - Usamos Flexbox para el control vertical */
+.order-column {
+    background-color: #f8f9fa !important;
+}
+
+/* Área de scroll para el menú (casi el 100% de la columna - header/buscador) */
+.menu-scroll-area {
+    height: calc(100% - 70px);
+    /* 70px es un estimado para el h2 y el input de búsqueda */
+    overflow-y: auto;
+    padding-right: 15px;
+}
+
+/* Grid de productos (usando display: grid para mejor control) */
+.product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    /* Mínimo 200px de ancho */
+    gap: 1rem;
+}
+
+/* Estilo básico de la tarjeta de producto */
+.product-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s;
+}
+
+.product-card:hover {
+    cursor: pointer;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: #0d6efd;
+}
+
+/* Estilo para los botones de acción dentro de la tarjeta */
+.price-action {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* Área del carrito (SCROLL AREA) */
+/* Ahora usa flex-grow: 1 y overflow-y: auto para el scroll. */
+.order-scroll-area {
+    overflow-y: auto;
+    padding-bottom: 10px;
+}
+
+/* Resumen de totales y botón de pago (Fijo al fondo) */
+/* Eliminamos el position: absolute y dejamos que Flexbox lo posicione al final. */
+.order-summary-fixed {
+    /* Eliminamos: position: absolute; bottom: 0; left: 0; right: 0; */
+    padding: 1rem;
+    background-color: #f8f9fa;
+    flex-shrink: 0;
+    /* Asegura que no se encoja */
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.05);
+}
+
+/* -----------------------------------
+ * ESTILOS ESPECÍFICOS DEL MODAL DE OPCIONES
+ * ----------------------------------- */
+
+.modal-body {
+    background-color: #fcfcfc;
+}
+
+.modal-footer {
+    border-top: 1px solid #e9ecef;
+}
+
+/* Estilos para las opciones de "Mitad y Mitad" */
+#splitPizzaCheckbox:checked+.form-check-label {
+    color: #0d6efd;
+    /* Azul cuando está activo */
+}
+
+#splitPizzaOptions {
+    background-color: #e9f5ff;
+    /* Fondo más claro para la sección de mitades */
+    border: 1px solid #a3d9ff;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+    /* Más espacio arriba */
+    margin-bottom: 2rem !important;
+    /* Más espacio abajo */
+}
+
+#splitPizzaOptions h6 {
+    color: #0d6efd;
+    /* Título en azul */
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Estilo para las opciones de variante (radio buttons) */
+.variant-options-group {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.variant-options-group h6 {
+    color: #343a40;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    border-bottom: 1px dashed #e9ecef;
+    /* Línea discontinua */
+    padding-bottom: 0.75rem;
+}
+
+.form-check {
+    padding: 0.75rem 0;
+    /* Espacio vertical para cada opción */
+    border-bottom: 1px dotted #f0f0f0;
+    /* Línea de puntos suave */
+    margin-bottom: 0;
+}
+
+.form-check:last-child {
+    border-bottom: none;
+    /* Quitar la línea del último elemento */
+}
+
+.form-check-input {
+    margin-top: 0.35em;
+    /* Ajuste vertical del radio button */
+}
+
+.form-check-label {
+    font-size: 1.05rem;
+    color: #343a40;
+    cursor: pointer;
+    /* Indica que es clickeable */
+    display: flex;
+    /* Para alinear el texto y el precio */
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    /* Ocupa todo el ancho */
+    padding-left: 0.5rem;
+    /* Separación del radio */
+}
+
+.form-check-label .fw-bold {
+    color: #0d6efd;
+    /* Precio de variante en azul */
+}
+
+/* Estado seleccionado del radio button */
+.form-check-input:checked+.form-check-label {
+    background-color: #e2f2ff;
+    /* Fondo ligeramente azul al seleccionar */
+    border-radius: 4px;
+    padding: 0.75rem;
+    /* Ajustar padding al background */
+    margin: -0.75rem 0;
+    /* Ajustar margen para que el background cubra la línea punteada */
+    color: #0d6efd;
+    /* Texto de la opción seleccionada en azul */
+    font-weight: 600;
+}
+
+.form-check-input:checked+.form-check-label .fw-bold {
+    color: #0a58ca;
+    /* Azul más oscuro para el precio seleccionado */
+}
+
+/* Estilo para los selectores de Mitad y Mitad */
+#half1Select,
+#half2Select {
+    border-radius: 6px;
+    border: 1px solid #b8daff;
+    padding: 0.5rem;
+    font-size: 0.95rem;
+}
+
+#half1Select:focus,
+#half2Select:focus {
+    border-color: #4da6ff;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+
+/* Permitir que el modal ocupe más altura de la pantalla */
+.modal-dialog.modal-lg .modal-content {
+    max-height: 90vh;
+    overflow-y: hidden;
+}
+
+/* El modal-body no hace scroll, lo hace el contenido interno */
+.modal-body {
+    max-height: 80vh;
+    overflow-y: hidden;
+    background-color: #fcfcfc;
+}
+
+/* Este es el contenedor que hace scroll, su altura limita dónde empieza la sección fija de Cantidad */
+#modal-scroll-content {
+    max-height: 40vh;
+    /* Ajusta este valor (vh = % del viewport) si el área de scroll es muy grande o pequeña */
+    overflow-y: auto;
+}
+
+/* Ajustes de cantidad para asegurar la visibilidad */
+#quantityInput {
+    height: calc(2.5em + 0.75rem + 2px);
+    max-width: 100px;
+}
+
+/* /pizzeria_pos/public/assets/css/main.css */
+
+/* -----------------------------------
+ * AJUSTES DE MODAL PARA ALINEACIÓN (CRUCIAL)
+ * ----------------------------------- */
+
+/* Aseguramos que la etiqueta ocupe el 100% y use Flexbox */
+.form-check-label {
+    /* Mantenemos tus estilos anteriores, pero añadimos: */
+    display: flex;
+    justify-content: space-between;
+    /* Alinea nombre a la izquierda, precio a la derecha */
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    font-size: 1.05rem;
+    padding-left: 0.5rem;
+}
+
+/* El span del nombre debe poder crecer, el del precio debe ser fijo */
+.form-check-label span:first-child {
+    margin-right: 1rem;
+    flex-grow: 1;
+}
+
+/* Reducimos el padding en el grupo de opciones del modal para ganar espacio */
+.variant-options-group {
+    padding: 1rem !important;
+}
+
+/* Estilos para el texto de Adicionales */
+.form-check-label .text-dark {
+    font-size: 0.95rem;
+    white-space: nowrap;
+    /* Evita que el precio se rompa */
+}

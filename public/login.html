@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Iniciar Sesión - POS Pizzería</title>
+    <link rel="stylesheet" href="assets/css/main.css"> </head>
+<body>
+    <div class="login-container">
+        <h1>POS Pizzería</h1>
+        <h2>Iniciar Sesión</h2>
+        
+        <div id="message-area" style="color: red; margin-bottom: 15px;"></div>
+
+        <form id="loginForm">
+            <label for="username">Usuario:</label>
+            <input type="text" id="username" name="username" required>
+            
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" required>
+            
+            <button type="submit">Entrar</button>
+        </form>
+    </div>
+
+    <script src="assets/js/auth.js"></script>
+</body>
+</html>

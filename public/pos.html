@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punto de Venta Pizzería</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/main.css">
+</head>
+
+<body>
+
+    <nav class="navbar navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">🍕 **POS Pizzería**</a>
+            <div class="d-flex align-items-center">
+
+                <button id="pending-orders-btn" class="btn btn-outline-info text-white btn-sm me-3">
+                    Pedidos Pendientes
+                </button>
+
+                <button id="reprint-btn" class="btn btn-outline-warning btn-sm me-3">
+                    Reimprimir
+                </button>
+                <span class="navbar-text me-3" id="user-info">Cargando...</span>
+                <button id="logout-btn" class="btn btn-outline-light btn-sm">Cerrar Sesión</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid pos-main-content">
+        <div class="row">
+
+            <div class="col-lg-8 p-3 menu-column">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="h4 mb-0">Catálogo de Productos</h2>
+                    <input type="text" id="product-search" class="form-control w-25" placeholder="Buscar producto...">
+                </div>
+
+                <div id="initial-search-prompt" class="text-center py-5" style="display: none;">
+                    <h4 class="text-muted mt-5">🔍 ¡Bienvenido! Ingresa el nombre del producto en el buscador para
+                        empezar.</h4>
+                    <p class="text-secondary">Ejemplo: 'Pastor', 'Hawaiana', 'Refresco'.</p>
+                </div>
+
+                <div id="menu-container" class="menu-scroll-area">
+                </div>
+            </div>
+
+            <div class="col-lg-4 p-3 border-start order-column bg-light d-flex flex-column">
+                <h2 class="h4 border-bottom pb-2 mb-3">🛒 Pedido Actual</h2>
+                <div class="mb-3">
+                    <label for="serviceTypeSelector" class="form-label small fw-bold">Tipo de Servicio:</label>
+                    <select class="form-select form-select-sm" id="serviceTypeSelector">
+                        <option value="TO_GO" selected>Para Llevar (Takeout)</option>
+                        <option value="DINE_IN">Comer Aquí (Mesa)</option>
+                    </select>
+                </div>
+
+                <!-- <div id="order-details" class="order-scroll-area flex-grow-1">
+                </div> -->
+
+                <div id="order-details" class="order-scroll-area flex-grow-1">
+                    <p class="text-muted text-center mt-4">El pedido está vacío. Agrega un producto.</p>
+                </div>
+
+                <div id="discount-area" class="mt-4 pt-3 border-top w-100">
+                    <label for="discount-code" class="form-label small fw-bold">Código de Descuento:</label>
+                    <div class="input-group input-group-sm">
+                        <input type="text" id="discount-code" class="form-control" placeholder="Ingresar código..."
+                            value="">
+                        <button class="btn btn-sm btn-info" type="button" id="apply-discount-btn">Aplicar</button>
+                    </div>
+                    <div id="discount-message" class="small mt-1 text-muted"></div>
+                </div>
+                <div class="mt-3 pt-3 border-top order-summary-fixed w-100">
+
+                    <div class="d-flex justify-content-between text-danger fw-bold mb-1" id="discount-display"
+                        style="display: none;">
+                        <span>DESCUENTO:</span>
+                        <span id="order-discount"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between fw-bold mb-2">
+                        <span>SUBTOTAL:</span>
+                        <span id="order-subtotal"></span>
+                    </div>
+                    <div class="d-flex justify-content-between fw-bold fs-5 mb-3">
+                        <span>TOTAL:</span>
+                        <span id="order-total"></span>
+                    </div>
+                    <button id="checkout-btn" class="btn btn-success btn-lg w-100" disabled>Finalizar Pedido</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="variantModal" tabindex="-1" aria-labelledby="variantModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="variantModalLabel">Opciones de: <span id="modalProductName"
+                            class="fw-bold"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4 d-flex flex-column">
+                    <form id="variantForm" class="d-flex flex-column flex-grow-1">
+                        <input type="hidden" id="modalProductId">
+
+                        <div id="modal-scroll-content" class="flex-grow-1">
+
+                            <p class="text-muted mb-3" id="modalProductDescription"></p>
+
+                            <div id="modalVariantOptions">
+                            </div>
+
+                            <div id="modalProductExtras">
+                            </div>
+                        </div>
+                        <hr class="mt-3 mb-2 flex-shrink-0">
+                        <div class="d-flex justify-content-between align-items-center flex-shrink-0 pb-1">
+                            <label for="quantityInput" class="fw-bold fs-5 text-dark">Cantidad:</label>
+                            <input type="number" id="quantityInput" class="form-control w-25 text-center fs-5" value="1"
+                                min="1" max="99">
+                        </div>
+                    </form>
+                </div>
+
+                <div class="modal-footer d-flex flex-column align-items-stretch bg-light p-3 flex-shrink-0">
+
+                    <div id="selection-summary" class="alert alert-info py-2 mb-3 d-none">
+                        <small class="fw-bold">Tu Selección:</small>
+                        <div id="summary-content" class="mt-1"></div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fs-4 me-auto fw-bold text-success" id="modalVariantPrice">$0.00</span>
+                        <button type="button" class="btn btn-secondary px-4 me-2"
+                            data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-primary px-4" id="addToCartModalBtn">Añadir al
+                            Pedido</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="pendingOrdersModal" tabindex="-1" aria-labelledby="pendingOrdersModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="pendingOrdersModalLabel">Órdenes Pendientes de Pago (DINE-IN)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>ID Orden</th>
+                                <th>Tipo Servicio</th>
+                                <th>Total</th>
+                                <th>Fecha</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingOrdersTableBody">
+                        </tbody>
+                    </table>
+                    <div id="pendingOrdersMessage" class="p-3 text-center text-muted" style="display: none;">
+                        No hay órdenes pendientes.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/pos.js"></script>
+</body>
+
+</html>
