@@ -14,8 +14,8 @@ let appliedDiscount = {
     value: 0.00 // Monto total del descuento aplicado en $
 };
 // Variables de Impresión (NUEVAS)
-const PRINT_SERVICE_URL = 'http://localhost:9898/imprimir/';
-const REPRINT_SERVICE_URL = 'http://localhost:9898/reimprimir/';
+const PRINT_SERVICE_URL = 'http://localhost:9899/imprimir/';
+const REPRINT_SERVICE_URL = 'http://localhost:9899/reimprimir/';
 
 
 /**
@@ -226,69 +226,156 @@ async function completeOrder(orderId) {
  * Función genérica para enviar datos de impresión al servicio local de C#.
  */
 async function sendPrintJob(orderData, type, url) {
-    // 1. Preparar el JSON que el servicio C# espera
-    const payload = {
-        // Datos generales de la venta (para el encabezado y totales)
-        venta: {
-            order_number: orderData.order_id,
-            subtotal: orderData.subtotal,
-            discount: orderData.discount_amount, // Descuento aplicado
-            total: orderData.total,
-            fecha: new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
-            // Añadir más campos si tu ticketbuilder C# lo requiere (ej. vendedor, mesa)
-        },
-        // Los ítems que se van a imprimir
-        items_for_ticket: orderData.items,
 
-        // Configuraciones específicas para el servicio C# (Program.cs)
-        type: (type === 'COCINA' ? 'kitchen_ticket' : 'sale_ticket'),
-        ticket_basico: type === 'COCINA',
-        ticket_footer: type === 'COCINA' ? '-- PARA COCINA --' : '¡Gracias por su compra!'
+    // El 'orderData' que recibimos de 'handleCheckout' o 'completeOrder'
+    // ya tiene el formato correcto que nuestro C# 'Models.cs' espera.
+    // No necesitamos crear un objeto '{ venta: ... }'.
+    // Simplemente pasamos el objeto 'orderData' tal cual.
+
+    // Solo agregamos el tipo de ticket para que C# sepa qué hacer
+    // (Aunque nuestro C# actual no usa esto, es bueno tenerlo para el futuro)
+    const payload = {
+        ...orderData, // Copia todos los campos (order_id, total, subtotal, items, etc.)
+        print_type: type // 'VENTA' o 'COCINA'
     };
 
     console.log(`Enviando trabajo de impresión (${type})...`);
+    console.log('Payload para C#:', payload); // Para depuración
 
     try {
-        const response = await fetch(url, {
+        const response = await fetch(url, { // 'url' es PRINT_SERVICE_URL
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload) // <--- Enviamos el payload corregido
         });
+
+        if (!response.ok) {
+            // Capturar errores del servidor C#
+            let errorMsg = `Error HTTP ${response.status} del servicio de impresión.`;
+            try {
+                const errorData = await response.json();
+                errorMsg = errorData.detail || errorData.message || errorMsg;
+            } catch (e) {
+                // El cuerpo del error no era JSON
+            }
+            throw new Error(errorMsg);
+        }
 
         const result = await response.json();
 
         if (result.success) {
             console.log(`Impresión de ${type} exitosa. Ticket ID: ${result.ticket_id}`);
-            // Opcional: alert(`Ticket de ${type} impreso. ID: ${result.ticket_id}`);
         } else {
             console.error(`Error al imprimir ${type}:`, result.message);
-            alert(`ATENCIÓN: Error al imprimir ticket de ${type}. Verifique la impresora. ${result.message}`);
+            alert(`ATENCIÓN: Error al imprimir ticket de ${type}. ${result.message}`);
         }
+
     } catch (error) {
+        // Este es el error si el C# no está corriendo
         console.error(`No se pudo conectar al servicio de impresión local (${url}).`, error);
-        alert(`ERROR: No se pudo conectar al servicio de impresión local C# en ${url}. Asegúrese de que esté corriendo.`);
+        alert(`ERROR GRAVE: No se pudo conectar al servicio de impresión local C#.\n\nAsegúrese de que "PizzeriaPrintBridge.exe" esté ejecutándose.\n\nDetalle: ${error.message}`);
     }
 }
 
 /**
  * Muestra el modal para reimprimir tickets.
  */
-function showReprintModal() {
+async function showReprintModal() {
     const orderId = prompt("Ingrese el ID de la orden a reimprimir:");
-    if (orderId) {
-        // Objeto simple para la reimpresión, C# debe tener el job guardado.
-        const data = { ticket_id: orderId };
-        //Cambiar ticket_id por order_id
+    if (!orderId) {
+        return; // El usuario canceló
+    }
 
-        const type = prompt("¿Qué ticket desea reimprimir? (COCINA o VENTA)").toUpperCase();
+    const type = prompt("¿Qué ticket desea reimprimir? (COCINA o VENTA)").toUpperCase();
 
-        if (type === 'COCINA' || type === 'VENTA') {
-            // El servicio C# ya sabe que esta es una REIMPRESIÓN por la URL
-            console.log(data)
-            //sendPrintJob(data, type, REPRINT_SERVICE_URL);
-        } else {
-            alert('Tipo de ticket inválido. Use COCINA o VENTA.');
+    if (type !== 'COCINA' && type !== 'VENTA') {
+        alert('Tipo de ticket inválido. Use COCINA o VENTA.');
+        return;
+    }
+
+    // --- 1. LLAMAR A PHP PARA OBTENER LOS DATOS ---
+    console.log(`Buscando datos de la orden #${orderId} en el servidor...`);
+
+    try {
+        // Usamos el nuevo endpoint '/orders/get' que creamos en PHP
+        const response = await fetch(`${API_BASE_URL}/orders/get?id=${orderId}`);
+
+        if (!response.ok) {
+            let errorMsg = `Error HTTP ${response.status} del servidor.`;
+            try {
+                const errData = await response.json();
+                errorMsg = errData.message;
+            } catch (e) { }
+
+            throw new Error(errorMsg);
         }
+
+        const data = await response.json();
+
+        if (data.success && data.order_data) {
+            // ¡Éxito! PHP nos devolvió los datos completos
+            const orderData = data.order_data;
+
+            console.log('Datos de la orden encontrados. Enviando a impresión...');
+
+            // --- 2. LLAMAR AL PUENTE C# CON LOS DATOS ---
+            // Usamos la URL de impresión normal. C# diferenciará el ticket
+            // usando el 'print_type' que le pasamos.
+            await sendPrintJob(orderData, type, PRINT_SERVICE_URL);
+
+        } else {
+            // PHP no encontró la orden o hubo un error
+            alert(`Error al buscar la orden: ${data.message}`);
+        }
+
+    } catch (error) {
+        console.error('Error al reimprimir:', error);
+        alert(`Error de conexión al buscar la orden #${orderId}. Revisa la consola.\n\nDetalle: ${error.message}`);
+    }
+}
+
+async function showCancelModal() {
+    const orderId = prompt("Ingrese el ID de la orden a ANULAR:");
+
+    if (!orderId) {
+        return; // El usuario canceló
+    }
+
+    // Doble confirmación porque esta acción es importante
+    if (!confirm(`¿Está SEGURO de que desea anular la orden #${orderId}?\n\nEsta acción marcará la venta como CANCELLED y no se puede deshacer.`)) {
+        return;
+    }
+
+    try {
+        console.log(`Enviando solicitud para anular la orden #${orderId}...`);
+
+        const response = await fetch(`${API_BASE_URL}/orders/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: parseInt(orderId) })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`¡Éxito! ${data.message}`);
+
+            // Si el modal de pendientes está abierto, lo actualizamos
+            // para que la orden anulada desaparezca de la lista.
+            const modalElement = document.getElementById('pendingOrdersModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance && modalElement.classList.contains('show')) {
+                console.log('Actualizando lista de pendientes...');
+                renderPendingOrdersModal();
+            }
+
+        } else {
+            alert(`Error al anular la orden: ${data.message}`);
+        }
+
+    } catch (error) {
+        console.error('Error de conexión al anular la orden:', error);
+        alert('Error de conexión. No se pudo anular la orden.');
     }
 }
 
@@ -440,6 +527,9 @@ async function initPOS() {
         const reprintBtn = document.getElementById('reprint-btn');
         if (reprintBtn) reprintBtn.addEventListener('click', showReprintModal);
 
+        const cancelBtn = document.getElementById('cancel-order-btn');
+        if (cancelBtn) cancelBtn.addEventListener('click', showCancelModal);
+
         // NUEVO LISTENER: Botón para mostrar pedidos pendientes
         const pendingOrdersBtn = document.getElementById('pending-orders-btn');
         if (pendingOrdersBtn) {
@@ -461,7 +551,7 @@ async function initPOS() {
 
 async function loadMenu() {
     try {
-        const response = await fetch(`${API_BASE_URL}/products/list`);
+        const response = await fetch(`${API_BASE_URL}/pos/list`);
         const data = await response.json();
 
         if (data.success) {

@@ -1,0 +1,40 @@
+/* /public/admin/admin.css */
+
+body {
+    background-color: #f8f9fa; /* Un fondo gris claro */
+}
+
+.admin-panel .card-icon {
+    font-size: 3rem; /* Icono grande */
+    color: #0d6efd; /* Color primario de Bootstrap */
+}
+
+.admin-panel .card-link {
+    text-decoration: none;
+    color: inherit; /* Hereda el color de texto normal */
+}
+
+.admin-panel .admin-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: none;
+    border-radius: 0.5rem;
+}
+
+.admin-panel .admin-card:hover {
+    transform: translateY(-5px); /* Efecto de levantar la tarjeta */
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Estilos para las tarjetas deshabilitadas */
+.admin-panel .disabled-card {
+    background-color: #e9ecef;
+    opacity: 0.7;
+}
+
+.admin-panel .disabled-card .card-icon {
+    color: #6c757d; /* Color gris */
+}
+
+.admin-panel .disabled-link {
+    pointer-events: none; /* Desactiva el clic */
+}

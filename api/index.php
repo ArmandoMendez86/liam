@@ -7,9 +7,12 @@ header('Content-Type: application/json');
 
 // Incluir controladores (ajusta las rutas según sea necesario)
 require_once CONTROLLER_PATH . '/AuthController.php';
-require_once CONTROLLER_PATH . '/ProductController.php';
+require_once CONTROLLER_PATH . '/PosController.php';
 require_once CONTROLLER_PATH . '/DiscountController.php';
 require_once CONTROLLER_PATH . '/OrderController.php';
+require_once CONTROLLER_PATH . '/CategoryController.php';
+require_once CONTROLLER_PATH . '/ExtrasController.php';
+require_once CONTROLLER_PATH . '/ProductController.php';
 
 
 // ----------------------------------------------------
@@ -47,10 +50,29 @@ try {
                 echo json_encode(['success' => false, 'message' => 'Endpoint de Auth no encontrado']);
             }
             break;
+        case 'pos':
+            $controller = new PosController();
+            if ($method_name === 'list') {
+                $controller->list();
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de Products no encontrado']);
+            }
+            break;
         case 'products':
             $controller = new ProductController();
             if ($method_name === 'list') {
-                $controller->list();
+                $controller->list(); // Para el TPV (pos.js)
+            } elseif ($method_name === 'adminList') {
+                $controller->adminList(); // Para el Admin
+            } elseif ($method_name === 'get') {
+                $controller->get(); // Para el Admin
+            } elseif ($method_name === 'create') {
+                $controller->create(); // Para el Admin
+            } elseif ($method_name === 'update') {
+                $controller->update(); // Para el Admin
+            } elseif ($method_name === 'delete') {
+                $controller->delete(); // Para el Admin
             } else {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Endpoint de Products no encontrado']);
@@ -70,13 +92,51 @@ try {
             $controller = new OrderController();
             if ($method_name === 'create') {
                 $controller->create();
-            } elseif ($method_name === 'complete') { // <--- NUEVA RUTA
+            } elseif ($method_name === 'complete') {
                 $controller->complete();
-            } elseif ($method_name === 'pending') { // <--- NUEVA RUTA
+            } elseif ($method_name === 'pending') {
                 $controller->getPendingOrders();
+            } elseif ($method_name === 'get') {
+                $controller->getOrderById();
+            } elseif ($method_name === 'cancel') {
+                $controller->cancel();
             } else {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Endpoint de Orders no encontrado']);
+            }
+            break;
+        case 'categories':
+            $controller = new CategoryController();
+            if ($method_name === 'list') {
+                $controller->list(); // GET /api/categories/list
+            } elseif ($method_name === 'get') {
+                $controller->get(); // GET /api/categories/get?id=1
+            } elseif ($method_name === 'create') {
+                $controller->create(); // POST /api/categories/create
+            } elseif ($method_name === 'update') {
+                $controller->update(); // POST /api/categories/update
+            } elseif ($method_name === 'delete') {
+                $controller->delete(); // POST /api/categories/delete
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de Categories no encontrado']);
+            }
+            break;
+        case 'extras':
+            $controller = new ExtrasController();
+            if ($method_name === 'list') {
+                $controller->list(); // GET /api/extras/list
+            } elseif ($method_name === 'get') {
+                $controller->get(); // GET /api/extras/get?id=1
+            } elseif ($method_name === 'create') {
+                $controller->create(); // POST /api/extras/create
+            } elseif ($method_name === 'update') {
+                $controller->update(); // POST /api/extras/update
+            } elseif ($method_name === 'delete') {
+                $controller->delete(); // POST /api/extras/delete
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de Extras no encontrado']);
             }
             break;
 

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-gear-fill"></i>
+                Admin Pizzería
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="../pos.html">
+                            <i class="bi bi-display"></i> Volver al TPV
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="../login.html">
+                            <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container admin-panel mt-5">
+        <h1 class="mb-4">Panel de Control</h1>
+
+        <div class="row g-4">
+            
+            <div class="col-md-6 col-lg-4">
+                <a href="categorias.html" class="card-link">
+                    <div class="card admin-card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="bi bi-tags-fill card-icon"></i>
+                            <h5 class="card-title mt-3">Gestionar Categorías</h5>
+                            <p class="card-text">Crear, editar y eliminar las secciones del menú (Pizzas, Bebidas, etc.).</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+                <a href="extras.html" class="card-link">
+                    <div class="card admin-card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="bi bi-plus-circle-dotted card-icon"></i>
+                            <h5 class="card-title mt-3">Gestionar Extras</h5>
+                            <p class="card-text">Administrar los ingredientes adicionales (Extra Queso, Salsas, etc.).</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+                <a href="productos.html" class="card-link">
+                    <div class="card admin-card h-100 shadow-sm">
+                        <div class="card-body text-center">
+                            <i class="bi bi-basket-fill card-icon"></i>
+                            <h5 class="card-title mt-3">Gestionar Productos</h5>
+                            <p class="card-text">(Próximamente) Añadir nuevas pizzas, bebidas y asignarles variantes.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+                <a href="#" class="card-link disabled-link">
+                    <div class="card admin-card h-100 shadow-sm disabled-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-bar-chart-line-fill card-icon"></i>
+                            <h5 class="card-title mt-3">Reportes de Ventas</h5>
+                            <p class="card-text">(Próximamente) Ver reportes de ventas por día, semana o mes.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
