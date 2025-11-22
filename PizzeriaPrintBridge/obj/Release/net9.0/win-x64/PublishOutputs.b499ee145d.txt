@@ -1,0 +1,5 @@
+C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Release\net9.0\win-x64\publish\appsettings.Development.json
+C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Release\net9.0\win-x64\publish\appsettings.json
+C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Release\net9.0\win-x64\publish\PizzeriaPrintBridge.pdb
+C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Release\net9.0\win-x64\publish\aspnetcorev2_inprocess.dll
+C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Release\net9.0\win-x64\publish\PizzeriaPrintBridge.exe

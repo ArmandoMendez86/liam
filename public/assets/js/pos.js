@@ -720,7 +720,7 @@ function handleProductClick(event) {
 
     const PIZZA_CATEGORY_ID = 1;
 
-    if (currentProduct.category_id === PIZZA_CATEGORY_ID || currentProduct.variants.length > 1) {
+    if (currentProduct.category_id === PIZZA_CATEGORY_ID || currentProduct.variants.length > 1 || currentProduct.flavor_options) {
         showVariantModal(currentProduct);
     } else {
         if (currentProduct.variants.length === 0) {
@@ -742,63 +742,160 @@ function handleProductClick(event) {
 }
 
 /**
+ * Renderiza un selector de sabores si el producto tiene opciones definidas en DB.
+ */
+/* function renderFlavorSelector(container, flavorString) {
+    if (!flavorString) return;
+
+    // Convertir la cadena "BBQ,Mango,Habanero" en un array
+    const flavors = flavorString.split(',').map(f => f.trim());
+
+    // Crear el HTML del selector
+    const optionsHtml = flavors.map(flavor => `<option value="${flavor}">${flavor}</option>`).join('');
+
+    container.innerHTML += `
+        <div class="variant-options-group mt-3" id="flavor-selector-group">
+            <label for="flavorSelect" class="form-label fw-bold">Elige el Sabor/Salsa:</label>
+            <select class="form-select" id="flavorSelect">
+                <option value="" selected>Selecciona un sabor...</option>
+                ${optionsHtml}
+            </select>
+        </div>
+    `;
+
+    // Listener para actualizar el resumen cuando cambie el sabor
+    document.getElementById('flavorSelect').addEventListener('change', updateSelectionSummary);
+} */
+
+/* function renderComboSelectors(container, product) {
+    // 1. Selector de Alitas para Combo (Solo si la BD tiene datos en combo_wings_options)
+    if (product.combo_wings_options) {
+        const flavors = product.combo_wings_options.split(',').map(f => f.trim());
+        const optionsHtml = flavors.map(f => `<option value="${f}">${f}</option>`).join('');
+
+        container.innerHTML += `
+            <div class="variant-options-group mt-3">
+                <label for="comboWingSelect" class="form-label fw-bold">Sabor de Alitas (Combo):</label>
+                <select class="form-select" id="comboWingSelect">
+                    <option value="" selected>Selecciona sabor...</option>
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+        // Agregamos un pequeño retardo para asegurar que el elemento existe antes de ponerle el listener
+        setTimeout(() => {
+            document.getElementById('comboWingSelect')?.addEventListener('change', updateSelectionSummary);
+        }, 50);
+    }
+
+    // 2. Selector de Refresco (Solo si la BD tiene datos en soda_options)
+    if (product.soda_options) {
+        const sodas = product.soda_options.split(',').map(s => s.trim());
+        const optionsHtml = sodas.map(s => `<option value="${s}">${s}</option>`).join('');
+
+        container.innerHTML += `
+            <div class="variant-options-group mt-3">
+                <label for="sodaSelect" class="form-label fw-bold">Elige el Refresco:</label>
+                <select class="form-select" id="sodaSelect">
+                    <option value="" selected>Selecciona refresco...</option>
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+        setTimeout(() => {
+            document.getElementById('sodaSelect')?.addEventListener('change', updateSelectionSummary);
+        }, 50);
+    }
+}
+ */
+/**
  * Muestra y pobla el modal de selección de variantes.
+ * (VERSIÓN CORREGIDA: Genera HTML primero y asigna eventos al final)
  */
 function showVariantModal(product) {
     currentProduct = product;
     const modal = new bootstrap.Modal(document.getElementById('variantModal'));
     const PIZZA_CATEGORY_ID = 1;
 
-    // 1. Resetear formulario y datos básicos
+    // 1. Resetear formulario y datos
     document.getElementById('variantForm').reset();
     document.getElementById('quantityInput').value = 1;
     document.getElementById('modalProductId').value = product.id;
     document.getElementById('modalProductName').textContent = product.name;
     document.getElementById('modalProductDescription').textContent = product.description || '';
-
     document.getElementById('selection-summary').classList.add('d-none');
 
     const optionsContainer = document.getElementById('modalVariantOptions');
     const extrasContainer = document.getElementById('modalProductExtras');
 
+    // Limpiamos contenedores
     optionsContainer.innerHTML = '';
-    if (extrasContainer) {
-        extrasContainer.innerHTML = '';
+    if (extrasContainer) extrasContainer.innerHTML = '';
+
+    // ========================================================================
+    // FASE 1: CONSTRUCCIÓN DE HTML (Acumulamos todo el texto primero)
+    // ========================================================================
+    let fullHtml = '';
+
+    // A. HTML de Pizza (Split)
+    if (product.category_id === PIZZA_CATEGORY_ID || (product.allows_pizza_split && product.allows_pizza_split === 1)) {
+        const specialtyProducts = fullMenuData.find(cat => cat.id === PIZZA_CATEGORY_ID)?.products || [];
+        fullHtml += getSplitPizzaHTML(specialtyProducts);
     }
 
-    // 2. Renderizar contenido
-    if (product.category_id === PIZZA_CATEGORY_ID) {
-        const specialtyProducts = fullMenuData.find(cat => cat.id === PIZZA_CATEGORY_ID)?.products || [];
-        renderSplitPizzaSelector(optionsContainer, specialtyProducts);
+    // B. HTML de Selectores de Combo (Refresco/Alitas)
+    fullHtml += getComboSelectorsHTML(product);
+
+    // C. HTML de Sabor Simple (Alitas sueltas)
+    if (product.flavor_options) {
+        fullHtml += getFlavorSelectorHTML(product.flavor_options);
     }
-    renderPriceVariants(optionsContainer, product.variants); // Listener adjunto internamente
+
+    // INYECTAMOS TODO EL HTML DE GOLPE (Esto evita que se borren los listeners)
+    optionsContainer.innerHTML = fullHtml;
+
+
+    // ========================================================================
+    // FASE 2: RENDERIZADO DE PRECIOS Y EXTRAS (Usan createElement, es seguro)
+    // ========================================================================
+    renderPriceVariants(optionsContainer, product.variants);
     if (extrasContainer) {
         renderProductExtras(extrasContainer, product.extras);
     }
 
-    // 3. Seleccionar la primera variante por defecto
+
+    // ========================================================================
+    // FASE 3: ACTIVACIÓN DE LISTENERS (Ahora que el HTML es definitivo)
+    // ========================================================================
+
+    // A. Listeners de Pizza (Checkbox Mitad y Mitad)
+    setupSplitPizzaListeners();
+
+    // B. Listeners de Selectores (Para actualizar el resumen al cambiar)
+    const selectorsToWatch = ['comboWingSelect', 'sodaSelect', 'flavorSelect', 'half1Select', 'half2Select', 'singleSpecialtySelect'];
+    selectorsToWatch.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updateSelectionSummary);
+    });
+
+
+    // 4. Seleccionar la primera variante de precio por defecto
     const firstRadio = document.querySelector('#modalVariantOptions input[type="radio"]');
-    if (firstRadio) {
-        firstRadio.checked = true;
-    }
+    if (firstRadio) firstRadio.checked = true;
 
-    // 4. Configuración de Listeners (Solo Cantidad Principal)
+    // 5. Configuración de Listener de Cantidad
     const quantityInput = document.getElementById('quantityInput');
-
-    // Limpiamos y adjuntamos el listener de 'input' a la cantidad principal
-    // El oninput es vital para la cantidad principal y no debe faltar.
     quantityInput.oninput = () => {
         updateModalPrice();
         updateSelectionSummary();
     };
 
-    // 5. Forzar la actualización inicial
+    // 6. Actualización inicial
     updateModalPrice();
     updateSelectionSummary();
 
     modal.show();
 }
-
 /**
  * Renderiza los radio buttons para elegir la variante de precio.
  * Utiliza el listener de 'click' delegado para forzar la actualización inmediata.
@@ -857,18 +954,45 @@ function renderPriceVariants(container, variants) {
 }
 
 /**
- * Renderiza el selector de Mitad-Mitad para pizzas.
+ * Renderiza el selector de Especialidad y Mitad-Mitad para pizzas o combos.
+ * (Función REESCRITA para soportar combos)
  */
-function renderSplitPizzaSelector(container, specialtyProducts) {
+/* function renderSplitPizzaSelector(container, specialtyProducts) {
+
+    // ID de la categoría "Pizzas", asumimos que es 1
+    const PIZZA_CATEGORY_ID = 1;
+    const isPizzaProduct = (currentProduct.category_id === PIZZA_CATEGORY_ID);
+
+    // Si es un producto de Pizza (ej. "Hawaiana"), pre-seleccionamos su ID.
+    // Si es un Combo, dejamos la selección en blanco ("").
+    const defaultSpecialtyId = isPizzaProduct ? currentProduct.id : "";
+
+    // Construir las opciones <select> para especialidades
     const specialtyOptions = specialtyProducts
         .map(p => `<option value="${p.id}">${p.name}</option>`)
         .join('');
 
+    // Construir las opciones <select> pero con el default seleccionado (si aplica)
+    const specialtyOptionsWithDefault = specialtyProducts
+        .map(p => {
+            const selected = (p.id === defaultSpecialtyId) ? "selected" : "";
+            return `<option value="${p.id}" ${selected}>${p.name}</option>`;
+        })
+        .join('');
+
     container.innerHTML += `
         <div class="variant-options-group mt-4">
-            <h6>Selección de Especialidad:</h6>
+            <h6>Selección de Pizza:</h6>
             
-            <div class="form-check form-switch mb-3">
+            <div id="singleSpecialtyOptions">
+                <label for="singleSpecialtySelect" class="form-label">Especialidad (Completa):</label>
+                <select class="form-select" id="singleSpecialtySelect">
+                    <option value="" ${defaultSpecialtyId === "" ? "selected" : ""}>Selecciona Especialidad</option>
+                    ${specialtyOptionsWithDefault}
+                </select>
+            </div>
+
+            <div class="form-check form-switch my-3">
                 <input class="form-check-input" type="checkbox" id="splitPizzaCheckbox">
                 <label class="form-check-label" for="splitPizzaCheckbox">¿Pizza Mitad y Mitad?</label>
             </div>
@@ -879,14 +1003,14 @@ function renderSplitPizzaSelector(container, specialtyProducts) {
                     <div class="col-md-6 mb-3">
                         <label for="half1Select" class="form-label">Mitad 1:</label>
                         <select class="form-select" id="half1Select">
-                            <option selected>Selecciona Especialidad</option>
+                            <option selected value="">Selecciona Especialidad</option>
                             ${specialtyOptions}
                         </select>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="half2Select" class="form-label">Mitad 2:</label>
                         <select class="form-select" id="half2Select">
-                            <option selected>Selecciona Especialidad</option>
+                            <option selected value="">Selecciona Especialidad</option>
                             ${specialtyOptions}
                         </select>
                     </div>
@@ -895,31 +1019,40 @@ function renderSplitPizzaSelector(container, specialtyProducts) {
         </div>
     `;
 
+    // --- LISTENERS ---
     const half1Select = document.getElementById('half1Select');
     const half2Select = document.getElementById('half2Select');
+    const singleSpecialtySelect = document.getElementById('singleSpecialtySelect');
     const splitCheckbox = document.getElementById('splitPizzaCheckbox');
-    const form = document.getElementById('variantForm');
-
-    form.dataset.singleSpecialtyId = currentProduct.id;
-    form.dataset.singleSpecialtyName = currentProduct.name;
+    const singleSpecialtyContainer = document.getElementById('singleSpecialtyOptions');
+    const splitOptionsContainer = document.getElementById('splitPizzaOptions');
 
     // Listener para el checkbox (Actualiza precio y resumen)
     if (splitCheckbox) {
         splitCheckbox.addEventListener('change', () => {
-            document.getElementById('splitPizzaOptions').style.display = splitCheckbox.checked ? 'block' : 'none';
+            // Si está chequeado, mostrar Mitades y ocultar Completa
+            splitOptionsContainer.style.display = splitCheckbox.checked ? 'block' : 'none';
+            singleSpecialtyContainer.style.display = splitCheckbox.checked ? 'none' : 'block';
+
+            // Si el usuario activa "mitad y mitad", reseteamos el valor de la pizza completa
+            // y si la desactiva, reseteamos las mitades.
+            if (splitCheckbox.checked) {
+                if (singleSpecialtySelect) singleSpecialtySelect.value = "";
+            } else {
+                if (half1Select) half1Select.value = "";
+                if (half2Select) half2Select.value = "";
+            }
+
             updateModalPrice();
             updateSelectionSummary();
         });
     }
 
-    // Listeners para los selectores de mitades (Actualiza solo el resumen)
-    if (half1Select) {
-        half1Select.addEventListener('change', updateSelectionSummary);
-    }
-    if (half2Select) {
-        half2Select.addEventListener('change', updateSelectionSummary);
-    }
-}
+    // Listeners para todos los selectores de pizza (Actualiza solo el resumen)
+    if (half1Select) half1Select.addEventListener('change', updateSelectionSummary);
+    if (half2Select) half2Select.addEventListener('change', updateSelectionSummary);
+    if (singleSpecialtySelect) singleSpecialtySelect.addEventListener('change', updateSelectionSummary);
+} */
 
 /**
  * Renderiza los inputs de cantidad para seleccionar extras/adicionales.
@@ -1080,13 +1213,16 @@ function updateSelectionSummary() {
         summaryText += `<span class="badge bg-primary me-2">${variantName}</span>`;
     }
 
-    // 2. Si es Pizza, obtener las opciones de especialidad / mitades
-    if (currentProduct.category_id === 1) {
+    // 2. Si es Pizza O un Combo con Pizza, obtener las opciones
+    const PIZZA_CATEGORY_ID = 1;
+    const allowsSplit = (currentProduct.allows_pizza_split && currentProduct.allows_pizza_split === 1);
+    const isPizza = (currentProduct.category_id === PIZZA_CATEGORY_ID);
+
+    if (isPizza || allowsSplit) {
         const isSplit = document.getElementById('splitPizzaCheckbox')?.checked;
-        const form = document.getElementById('variantForm');
 
         if (isSplit) {
-            // Mitades
+            // --- Caso Mitades ---
             const half1Select = document.getElementById('half1Select');
             const half2Select = document.getElementById('half2Select');
 
@@ -1094,21 +1230,41 @@ function updateSelectionSummary() {
                 const half1Name = half1Select.options[half1Select.selectedIndex].text;
                 const half2Name = half2Select.options[half2Select.selectedIndex].text;
 
-                if (half1Name !== 'Selecciona Especialidad') {
+                if (half1Name !== 'Selecciona Especialidad' && half1Select.value) {
                     summaryText += `<span class="badge bg-info text-dark me-2">½: ${half1Name}</span>`;
                 }
-                if (half2Name !== 'Selecciona Especialidad') {
+                if (half2Name !== 'Selecciona Especialidad' && half2Select.value) {
                     summaryText += `<span class="badge bg-info text-dark">½: ${half2Name}</span>`;
                 }
             }
         } else {
-            // Especialidad Completa 
-            const specialtyName = form.dataset.singleSpecialtyName;
-
-            if (specialtyName) {
-                summaryText += `<span class="badge bg-info text-dark">${specialtyName}</span>`;
+            // --- Caso Especialidad Completa ---
+            const singleSpecialtySelect = document.getElementById('singleSpecialtySelect');
+            if (singleSpecialtySelect && singleSpecialtySelect.value) {
+                const specialtyName = singleSpecialtySelect.options[singleSpecialtySelect.selectedIndex].text;
+                if (specialtyName !== 'Selecciona Especialidad') {
+                    summaryText += `<span class="badge bg-info text-dark">${specialtyName}</span>`;
+                }
             }
         }
+    }
+
+    // --- NUEVO: Mostrar sabor seleccionado ---
+    const flavorSelect = document.getElementById('flavorSelect');
+    if (flavorSelect && flavorSelect.value) {
+        summaryText += `<span class="badge bg-success me-2">Sabor: ${flavorSelect.value}</span>`;
+    }
+
+    // --- NUEVO: Resumen de Combo (Alitas) ---
+    const comboWingSelect = document.getElementById('comboWingSelect');
+    if (comboWingSelect && comboWingSelect.value) {
+        summaryText += `<span class="badge bg-success me-2">Alitas: ${comboWingSelect.value}</span>`;
+    }
+
+    // --- NUEVO: Resumen de Combo (Refresco) ---
+    const sodaSelect = document.getElementById('sodaSelect');
+    if (sodaSelect && sodaSelect.value) {
+        summaryText += `<span class="badge bg-info text-dark me-2">Refresco: ${sodaSelect.value}</span>`;
     }
 
     // 3. Obtener los extras seleccionados con cantidad
@@ -1133,11 +1289,11 @@ function updateSelectionSummary() {
 
 /**
  * Procesa los datos del modal y los añade al carrito.
+ * (VERSIÓN MAESTRA: Soporta Pizza Split + Combos con Opciones)
  */
 function handleAddToCartFromModal() {
     const selectedRadio = document.querySelector('input[name="selected_variant"]:checked');
     const quantity = parseInt(document.getElementById('quantityInput').value);
-    const splitChecked = document.getElementById('splitPizzaCheckbox')?.checked;
     const PIZZA_CATEGORY_ID = 1;
 
     if (!selectedRadio || quantity < 1) {
@@ -1146,26 +1302,21 @@ function handleAddToCartFromModal() {
     }
 
     const variantId = parseInt(selectedRadio.value);
-    const variantName = document.querySelector(`label[for="variant-${variantId}"]`).textContent.split(' ($')[0].trim();
+    // Nombre base de la variante (ej: "Grande", "Combo 1")
+    const variantNameBase = document.querySelector(`label[for="variant-${variantId}"]`).textContent.split(' ($')[0].trim();
     const basePrice = parseFloat(selectedRadio.dataset.price);
 
-    // 1. OBTENER EXTRAS SELECCIONADOS CON CANTIDAD
+    // 1. EXTRAS
     let selectedExtras = [];
     let extrasPriceTotal = 0;
-    const extraInputs = document.querySelectorAll('.extra-quantity-input');
-
-    extraInputs.forEach(input => {
+    document.querySelectorAll('.extra-quantity-input').forEach(input => {
         const extraQuantity = parseInt(input.value) || 0;
-
         if (extraQuantity > 0) {
             const extraUnitPrice = parseFloat(input.dataset.price);
             extrasPriceTotal += (extraUnitPrice * extraQuantity);
-
-            const checkboxId = `checkbox-${input.id}`;
-            const checkbox = document.getElementById(checkboxId);
-
+            const checkbox = document.getElementById(`checkbox-${input.id}`);
             selectedExtras.push({
-                id: parseInt(input.id),
+                id: parseInt(input.id.replace('extra-', '')),
                 name: checkbox.closest('.form-check').querySelector('span:first-child').textContent.trim(),
                 price: extraUnitPrice,
                 quantity: extraQuantity
@@ -1173,46 +1324,134 @@ function handleAddToCartFromModal() {
         }
     });
 
-    // Calcular el precio unitario del item (Precio Base + Costo Total Extras / Cantidad Principal)
-    // Esto asegura que si pides 2 pizzas y 4 salsas, el costo de las 4 salsas se distribuya
-    // entre las 2 pizzas para que el precio unitario sea correcto.
-    const finalItemUnitPrice = basePrice + (extrasPriceTotal / quantity);
+    const finalItemUnitPrice = basePrice + extrasPriceTotal;
 
+    // ---------------------------------------------------------
+    // 2. RECOLECTAR OPCIONES DE TEXTO (Refrescos, Sabores, Alitas)
+    // ---------------------------------------------------------
+    let infoToAdd = [];
+
+    // A. Alitas/Boneless SUELTOS
+    const flavorSelect = document.getElementById('flavorSelect');
+    if (flavorSelect && flavorSelect.closest('div').style.display !== 'none') {
+        if (!flavorSelect.value) { alert('Selecciona el sabor/salsa.'); return; }
+        infoToAdd.push(flavorSelect.value);
+    }
+
+    // B. Alitas DE COMBO
+    const comboWingSelect = document.getElementById('comboWingSelect');
+    if (comboWingSelect) {
+        if (!comboWingSelect.value) { alert('Selecciona el sabor de las alitas del combo.'); return; }
+        infoToAdd.push(`Alitas: ${comboWingSelect.value}`);
+    }
+
+    // C. Refresco DE COMBO
+    const sodaSelect = document.getElementById('sodaSelect');
+    if (sodaSelect) {
+        if (!sodaSelect.value) { alert('Selecciona el refresco.'); return; }
+        infoToAdd.push(`Ref: ${sodaSelect.value}`);
+    }
+
+    // Construir el nombre inicial de la variante
+    let finalVariantName = variantNameBase;
+    if (infoToAdd.length > 0) {
+        finalVariantName += ` (${infoToAdd.join(', ')})`;
+    }
+
+    // ---------------------------------------------------------
+    // 3. CREAR EL ITEM BASE
+    // ---------------------------------------------------------
     let item = {
         id: Date.now(),
         product_id: currentProduct.id,
         name: currentProduct.name,
-        variant_name: variantName,
+        variant_name: finalVariantName,
         variant_id: variantId,
         price: finalItemUnitPrice,
         quantity: quantity,
         is_split: false,
-        extras: selectedExtras
+        extras: selectedExtras,
+        split_details: null
     };
 
-    // 2. LÓGICA DE MITAD Y MITAD (Se mantiene igual)
-    if (currentProduct.category_id === PIZZA_CATEGORY_ID && splitChecked) {
-        const half1Select = document.getElementById('half1Select');
-        const half2Select = document.getElementById('half2Select');
-        const half1Id = parseInt(half1Select.value);
-        const half2Id = parseInt(half2Select.value);
-        const half1Name = half1Select.options[half1Select.selectedIndex].text;
-        const half2Name = half2Select.options[half2Select.selectedIndex].text;
+    // ---------------------------------------------------------
+    // 4. LÓGICA DE PIZZA (MITAD Y MITAD / ESPECIALIDAD)
+    // ---------------------------------------------------------
+    const allowsSplit = (currentProduct.allows_pizza_split && currentProduct.allows_pizza_split === 1);
+    const isPizza = (currentProduct.category_id === PIZZA_CATEGORY_ID);
 
-        if (!half1Id || !half2Id) {
-            alert('Debes seleccionar las dos especialidades para la pizza combinada.');
-            return;
+    // Si es Pizza O un Combo marcado para permitir pizza
+    if (isPizza || allowsSplit) {
+        const splitChecked = document.getElementById('splitPizzaCheckbox')?.checked;
+
+        if (splitChecked) {
+            // --- CASO: MITAD Y MITAD ---
+            const half1Select = document.getElementById('half1Select');
+            const half2Select = document.getElementById('half2Select');
+            const half1Id = parseInt(half1Select?.value);
+            const half2Id = parseInt(half2Select?.value);
+
+            if (!half1Id || !half2Id) {
+                alert('Debes seleccionar las dos especialidades para la pizza combinada.');
+                return;
+            }
+
+            const half1Name = half1Select.options[half1Select.selectedIndex].text;
+            const half2Name = half2Select.options[half2Select.selectedIndex].text;
+
+            item.is_split = true;
+            item.split_details = {
+                half1: { id: half1Id, name: half1Name },
+                half2: { id: half2Id, name: half2Name }
+            };
+
+            // Construcción del Nombre Principal
+            if (isPizza) {
+                item.name = `Pizza Combinada: ${half1Name} / ${half2Name}`;
+            } else {
+                // COMBO: Mantiene nombre del combo + detalles de pizza
+                item.name = `${currentProduct.name} (Pizza: ${half1Name} / ${half2Name})`;
+            }
+
+            // Añadimos "(Combinada)" a la variante para que se vea en el ticket
+            item.variant_name = `${item.variant_name} (Combinada)`;
+
+        } else {
+            // --- CASO: ESPECIALIDAD ÚNICA ---
+            const singleSpecialtySelect = document.getElementById('singleSpecialtySelect');
+            const singleSpecialtyId = parseInt(singleSpecialtySelect?.value);
+
+            // Si existe el selector y no tiene valor, es error (solo si es obligatorio, en combos suele serlo)
+            if (singleSpecialtySelect && !singleSpecialtyId) {
+                alert('Debes seleccionar una especialidad para la pizza.');
+                return;
+            }
+
+            // Si se seleccionó algo (o si es pizza y ya tiene ID por defecto)
+            if (singleSpecialtyId) {
+                const singleSpecialtyName = singleSpecialtySelect.options[singleSpecialtySelect.selectedIndex].text;
+
+                item.is_split = false;
+                item.split_details = {
+                    half1: { id: singleSpecialtyId, name: singleSpecialtyName },
+                    half2: { id: singleSpecialtyId, name: singleSpecialtyName }
+                };
+
+                if (isPizza) {
+                    // Si cambió la especialidad base
+                    if (currentProduct.id !== singleSpecialtyId) {
+                        item.name = singleSpecialtyName;
+                        item.product_id = singleSpecialtyId;
+                    }
+                } else {
+                    // COMBO: Añadimos la especialidad elegida al nombre
+                    item.name = `${currentProduct.name} (${singleSpecialtyName})`;
+                }
+            }
         }
-
-        item.is_split = true;
-        item.split_details = {
-            half1: { id: half1Id, name: half1Name },
-            half2: { id: half2Id, name: half2Name }
-        };
-        item.name = `Pizza Combinada: ${half1Name} / ${half2Name}`;
-        item.variant_name = `${item.variant_name} (Combinada)`;
     }
 
+    // 5. AÑADIR AL CARRITO
     addToCart(item);
     const modalInstance = bootstrap.Modal.getInstance(document.getElementById('variantModal'));
     modalInstance.hide();
@@ -1231,6 +1470,7 @@ function addToCart(item) {
 /**
  * Renderiza el contenido del carrito en el panel derecho.
  * Calcula el subtotal, aplica el descuento global y muestra el total final.
+ * (VERSIÓN CORREGIDA 2025-11-15 para manejar nombres de Combos Split)
  */
 function renderCart() {
     const container = document.getElementById('order-details');
@@ -1241,7 +1481,6 @@ function renderCart() {
     const orderDiscountSpan = document.getElementById('order-discount');
 
     if (!container || !subtotalSpan || !totalSpan || !checkoutBtn || !discountDisplay || !orderDiscountSpan) {
-        // No salimos con error, pero no se hace nada si falta el HTML del descuento (ya corregido en pasos previos)
         return;
     }
 
@@ -1271,21 +1510,45 @@ function renderCart() {
     cartItems.forEach(item => {
         const itemTotal = item.price * item.quantity;
 
+        // ================================================================
+        // INICIO DE LA CORRECCIÓN
+        // ================================================================
+
+        // El displayTitle es SIEMPRE item.name.
+        // Confiamos en que handleAddToCartFromModal lo ha puesto correctamente.
+        // Ej: "Combo 2 (Pizza: Liam / Suprema)"
+        // Ej: "Hawaiana"
+        // Ej: "Pizza Combinada: Liam / Suprema"
         let displayTitle = item.name;
-        let details = item.variant_name;
+
+        let details = '';
         let extrasList = '';
 
+        // 1. Construir la lista de extras (si hay)
         if (item.extras && item.extras.length > 0) {
             item.extras.forEach(extra => {
                 extrasList += `<span class="badge bg-secondary me-1">x${extra.quantity} ${extra.name}</span>`;
             });
-            details += `<div class="mt-1 small">${extrasList}</div>`;
+            extrasList = `<div class="mt-1 small">${extrasList}</div>`;
         }
 
+        // 2. Construir la línea de detalles (Variante + Extras)
         if (item.is_split) {
-            details = `<span class="fw-bold text-dark">${item.variant_name}</span>`;
-            displayTitle = `<span class="fw-bold">${item.split_details.half1.name} / ${item.split_details.half2.name}</span>`;
+            // Para items split, ponemos la variante en negrita
+            // Ej: "Normal (Combinada)" + (lista de extras)
+            details = `<span class="fw-bold text-dark">${item.variant_name}</span>${extrasList}`;
+        } else {
+            // Para items normales, solo la variante
+            // Ej: "Normal" + (lista de extras)
+            details = `${item.variant_name}${extrasList}`;
         }
+
+        // ¡YA NO SOBREESCRIBIMOS displayTitle SI ES SPLIT!
+
+        // ================================================================
+        // FIN DE LA CORRECCIÓN
+        // ================================================================
+
 
         container.innerHTML += `
             <div class="d-flex justify-content-between border-bottom py-2 align-items-center">
@@ -1393,6 +1656,153 @@ async function handleCheckout() {
     } finally {
         document.getElementById('checkout-btn').disabled = false;
         document.getElementById('checkout-btn').textContent = 'Finalizar Pedido';
+    }
+}
+
+/**
+ * Genera el string HTML para el selector de Pizza.
+ */
+function getSplitPizzaHTML(specialtyProducts) {
+    const PIZZA_CATEGORY_ID = 1;
+    const isPizzaProduct = (currentProduct.category_id === PIZZA_CATEGORY_ID);
+    const defaultSpecialtyId = isPizzaProduct ? currentProduct.id : "";
+
+    // Opciones para mitades
+    const specialtyOptions = specialtyProducts
+        .map(p => `<option value="${p.id}">${p.name}</option>`)
+        .join('');
+
+    // Opciones para completa (con default seleccionado)
+    const specialtyOptionsWithDefault = specialtyProducts
+        .map(p => `<option value="${p.id}" ${p.id === defaultSpecialtyId ? "selected" : ""}>${p.name}</option>`)
+        .join('');
+
+    return `
+        <div class="variant-options-group mt-4 border-bottom pb-3">
+            <h6 class="text-primary">Configuración de Pizza:</h6>
+            
+            <div id="singleSpecialtyOptions">
+                <label for="singleSpecialtySelect" class="form-label">Especialidad Completa:</label>
+                <select class="form-select" id="singleSpecialtySelect">
+                    <option value="" ${defaultSpecialtyId === "" ? "selected" : ""}>Selecciona Especialidad</option>
+                    ${specialtyOptionsWithDefault}
+                </select>
+            </div>
+
+            <div class="form-check form-switch my-3">
+                <input class="form-check-input" type="checkbox" id="splitPizzaCheckbox">
+                <label class="form-check-label fw-bold" for="splitPizzaCheckbox">¿Armar Mitad y Mitad?</label>
+            </div>
+
+            <div id="splitPizzaOptions" style="display: none;">
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label small">Mitad 1:</label>
+                        <select class="form-select form-select-sm" id="half1Select">
+                            <option selected value="">Elige...</option>
+                            ${specialtyOptions}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label small">Mitad 2:</label>
+                        <select class="form-select form-select-sm" id="half2Select">
+                            <option selected value="">Elige...</option>
+                            ${specialtyOptions}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Genera el string HTML para selectores de Combo (Refresco/Alitas).
+ */
+function getComboSelectorsHTML(product) {
+    let html = '';
+
+    // Alitas de Combo
+    if (product.combo_wings_options) {
+        const flavors = product.combo_wings_options.split(',').map(f => f.trim());
+        const optionsHtml = flavors.map(f => `<option value="${f}">${f}</option>`).join('');
+        html += `
+            <div class="variant-options-group mt-3">
+                <label for="comboWingSelect" class="form-label fw-bold">Sabor Alitas (Combo):</label>
+                <select class="form-select" id="comboWingSelect">
+                    <option value="" selected>Selecciona sabor...</option>
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+    }
+
+    // Refresco de Combo
+    if (product.soda_options) {
+        const sodas = product.soda_options.split(',').map(s => s.trim());
+        const optionsHtml = sodas.map(s => `<option value="${s}">${s}</option>`).join('');
+        html += `
+            <div class="variant-options-group mt-3">
+                <label for="sodaSelect" class="form-label fw-bold">Refresco:</label>
+                <select class="form-select" id="sodaSelect">
+                    <option value="" selected>Selecciona refresco...</option>
+                    ${optionsHtml}
+                </select>
+            </div>
+        `;
+    }
+    return html;
+}
+
+/**
+ * Genera el string HTML para sabor simple.
+ */
+function getFlavorSelectorHTML(flavorString) {
+    const flavors = flavorString.split(',').map(f => f.trim());
+    const optionsHtml = flavors.map(f => `<option value="${f}">${f}</option>`).join('');
+
+    return `
+        <div class="variant-options-group mt-3">
+            <label for="flavorSelect" class="form-label fw-bold">Elige Sabor/Salsa:</label>
+            <select class="form-select" id="flavorSelect">
+                <option value="" selected>Selecciona...</option>
+                ${optionsHtml}
+            </select>
+        </div>
+    `;
+}
+
+/**
+ * Activa la lógica del checkbox Mitad y Mitad.
+ * Se llama DESPUÉS de haber inyectado el HTML.
+ */
+function setupSplitPizzaListeners() {
+    const splitCheckbox = document.getElementById('splitPizzaCheckbox');
+    const splitOptionsContainer = document.getElementById('splitPizzaOptions');
+    const singleSpecialtyContainer = document.getElementById('singleSpecialtyOptions');
+    const singleSpecialtySelect = document.getElementById('singleSpecialtySelect');
+    const half1Select = document.getElementById('half1Select');
+    const half2Select = document.getElementById('half2Select');
+
+    if (splitCheckbox) {
+        splitCheckbox.addEventListener('change', () => {
+            const isChecked = splitCheckbox.checked;
+
+            // Mostrar/Ocultar contenedores
+            splitOptionsContainer.style.display = isChecked ? 'block' : 'none';
+            singleSpecialtyContainer.style.display = isChecked ? 'none' : 'block';
+
+            // Resetear valores contrarios para evitar confusión
+            if (isChecked) {
+                if (singleSpecialtySelect) singleSpecialtySelect.value = "";
+            } else {
+                if (half1Select) half1Select.value = "";
+                if (half2Select) half2Select.value = "";
+            }
+
+            updateModalPrice();
+            updateSelectionSummary();
+        });
     }
 }
 

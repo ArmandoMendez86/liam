@@ -34,7 +34,7 @@ class OrderController
         $service_type = $input['service_type'] ?? 'TO_GO';
         $status_to_save = $input['status'] ?? 'COMPLETED';
         $items = $input['items'];
-        $user_id = 1;
+        $user_id =  $_SESSION['user_id'];
 
         try {
             // --- ¡CAMBIO AQUÍ! (Paso 1 de 3) ---

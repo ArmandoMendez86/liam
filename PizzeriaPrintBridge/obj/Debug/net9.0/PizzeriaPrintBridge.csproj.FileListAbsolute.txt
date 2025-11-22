@@ -4,7 +4,6 @@ C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\obj\Debug\net9.0\PizzeriaPrintB
 C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\obj\Debug\net9.0\PizzeriaPrintBridge.AssemblyInfoInputs.cache
 C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\obj\Debug\net9.0\PizzeriaPrintBridge.AssemblyInfo.cs
 C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\obj\Debug\net9.0\PizzeriaPrintBridge.csproj.CoreCompileInputs.cache
-C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\obj\Debug\net9.0\PizzeriaPrintBridge.MvcApplicationPartsAssemblyInfo.cache
 C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\obj\Debug\net9.0\PizzeriaPrintBridge.sourcelink.json
 C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Debug\net9.0\appsettings.Development.json
 C:\xampp\htdocs\pizzeria_pos\PizzeriaPrintBridge\bin\Debug\net9.0\appsettings.json

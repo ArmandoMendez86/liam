@@ -6,244 +6,247 @@ namespace PizzeriaPrintBridge;
 
 public interface IPrinterService
 {
-    // ¡Recuerda cambiar esto por tu impresora real!
-    const string PRINTER_NAME = "POS-80"; 
-
+    const string PRINTER_NAME = "POS-58"; 
     void Print(OrderData order);
 }
 
 public class WindowsPrinterService : IPrinterService
 {
-    // ##################################################################
-    // ###               CONFIGURACIÓN DE DISEÑO                    ###
-    // ##################################################################
-    //
-    // ¡Ajusta estos valores para tu impresora!
-    //
-    // 1. SELECCIONA TU PAPEL (esto cargará los anchos de columna predefinidos):
-    private const int PAPER_WIDTH_MM = 80; // <--- CAMBIA ESTO A 58 O 80
+    // --- CONFIGURACIÓN ---
+    private const int PAPER_WIDTH_MM = 58; 
 
-    // 2. DEFINE LOS ANCHOS DE COLUMNA (en píxeles)
-    //    (Puedes experimentar hasta que se vea bien)
+    // Ajustes para 58mm (Área segura 48mm)
+    private const int COL_QTY_WIDTH_58MM = 22;   
+    private const int COL_TOTAL_WIDTH_58MM = 45; 
+    private const int COL_QTY_WIDTH_80MM = 40;
+    private const int COL_TOTAL_WIDTH_80MM = 70;
 
-    // --- Configuración para 80mm ---
-    private const int COL_QTY_WIDTH_80MM = 40;   // Ancho para "Cant."
-    private const int COL_TOTAL_WIDTH_80MM = 70; // Ancho para "$Total"
+    private const int MARGIN_LEFT = 0; 
+    private const int MARGIN_RIGHT = 0;
 
-    // --- Configuración para 58mm ---
-    private const int COL_QTY_WIDTH_58MM = 30;   // Ancho para "Cant."
-    private const int COL_TOTAL_WIDTH_58MM = 55; // Ancho para "$Total"
-
-    // 3. MÁRGENES
-    private const int MARGIN_LEFT = 5;
-    private const int MARGIN_RIGHT = 5;
-
-    // ##################################################################
-
-    // Fuentes (puedes ajustarlas)
-    private Font _titleFont = new("Arial", 12, FontStyle.Bold);
-    private Font _bodyFont = new("Arial", 9);
-    private Font _smallFont = new("Arial", 8, FontStyle.Italic); // Para los extras
+    private Font _titleFont;
+    private Font _bodyFont;
+    private Font _smallFont;
+    private Font _totalLabelFont; 
     private Brush _brush = Brushes.Black;
     private OrderData? _currentOrder; 
 
     public void Print(OrderData order)
     {
         _currentOrder = order;
+        
+        // Configurar fuentes según papel
+        if (PAPER_WIDTH_MM == 58)
+        {
+            _titleFont = new Font("Arial", 8, FontStyle.Bold);      
+            _bodyFont = new Font("Arial", 7, FontStyle.Regular);    
+            _smallFont = new Font("Arial", 6, FontStyle.Italic);    
+            _totalLabelFont = new Font("Arial", 7, FontStyle.Bold); 
+        }
+        else
+        {
+            _titleFont = new Font("Arial", 11, FontStyle.Bold);
+            _bodyFont = new Font("Arial", 9, FontStyle.Regular);
+            _smallFont = new Font("Arial", 8, FontStyle.Italic);
+            _totalLabelFont = new Font("Arial", 9, FontStyle.Bold);
+        }
 
         try
         {
             PrintDocument pd = new();
             pd.PrinterSettings.PrinterName = IPrinterService.PRINTER_NAME;
-            pd.PrintPage += new PrintPageEventHandler(FormatPrintPage);
+            
+            // DETECTAR TIPO DE IMPRESIÓN
+            if (_currentOrder.PrintType == "CORTE")
+            {
+                pd.PrintPage += new PrintPageEventHandler(PrintCutPage);
+            }
+            else
+            {
+                pd.PrintPage += new PrintPageEventHandler(FormatPrintPage);
+            }
+            
             pd.Print();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al imprimir: {ex.Message}");
-            throw new Exception($"Error al iniciar impresión: {ex.Message}. Revisa el nombre de la impresora.");
+            Console.WriteLine($"Error: {ex.Message}");
+            throw new Exception($"Error impresión: {ex.Message}");
         }
     }
 
-    /// <summary>
-    /// Aquí es donde "dibujamos" el ticket.
-    /// </summary>
+    // =========================================================
+    //  DISEÑO DEL TICKET NORMAL (VENTA / COCINA)
+    // =========================================================
     private void FormatPrintPage(object sender, PrintPageEventArgs e)
     {
         if (_currentOrder == null || e.Graphics == null) return;
-        
         Graphics g = e.Graphics;
 
-        // --- 1. Cargar configuración de columnas ---
+        float safeWidthMM = (PAPER_WIDTH_MM == 58) ? 48f : 72f;
+        float simulatedPaperWidth = (safeWidthMM / 25.4f) * 100;
+        float printableWidth = simulatedPaperWidth - MARGIN_LEFT - MARGIN_RIGHT;
+        float y = 5; 
+
         int colQtyWidth = (PAPER_WIDTH_MM == 58) ? COL_QTY_WIDTH_58MM : COL_QTY_WIDTH_80MM;
         int colTotalWidth = (PAPER_WIDTH_MM == 58) ? COL_TOTAL_WIDTH_58MM : COL_TOTAL_WIDTH_80MM;
-
-        // --- 2. Definir Área de Impresión y Coordenadas ---
-        float totalWidth = e.PageSettings.PaperSize.Width;
-        float printableWidth = totalWidth - MARGIN_LEFT - MARGIN_RIGHT;
-        float y = 10; // Posición Y actual
-
-        // Definir las posiciones X (horizontales) de cada columna
         float xQty = MARGIN_LEFT;
         float xDesc = MARGIN_LEFT + colQtyWidth;
-        
-        // El ancho de la descripción es el espacio que queda en medio
-        float descWidth = printableWidth - colQtyWidth - colTotalWidth;
-        
-        // La columna de total empieza donde termina la de descripción
+        float descWidth = printableWidth - colQtyWidth - colTotalWidth; 
         float xTotal = xDesc + descWidth;
 
-        // --- 3. Definir Formatos de Alineación ---
-        StringFormat alignLeft = new StringFormat { Alignment = StringAlignment.Near };
         StringFormat alignCenter = new StringFormat { Alignment = StringAlignment.Center };
         StringFormat alignRight = new StringFormat { Alignment = StringAlignment.Far };
+        StringFormat alignLeft = new StringFormat { Alignment = StringAlignment.Near };
 
-        // --- 4. Determinar Tipo de Ticket ---
-        bool isKitchenTicket = (_currentOrder.PrintType == "COCINA");
+        bool isKitchen = (_currentOrder.PrintType == "COCINA");
 
-        
-        // --- 5. DIBUJAR ENCABEZADO ---
-        string ticketTitle = isKitchenTicket ? "--- COCINA ---" : "Ticket de Venta";
-        RectangleF rectTitle = new RectangleF(MARGIN_LEFT, y, printableWidth, 20);
-        g.DrawString(ticketTitle, _titleFont, _brush, rectTitle, alignCenter);
-        y += 30;
+        // Título
+        string title = isKitchen ? "--- COCINA ---" : "TICKET DE VENTA";
+        g.DrawString(title, _titleFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 15), alignCenter);
+        y += 15;
+        g.DrawString("PIZZERIA 'LIAM'", _titleFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 15), alignCenter);
+        y += 20;
 
-        RectangleF rectLogo = new RectangleF(MARGIN_LEFT, y, printableWidth, 20);
-        g.DrawString("PIZZERIA 'LIAM'", _titleFont, _brush, rectLogo, alignCenter);
-        y += 30;
-
-        // --- 6. DIBUJAR DATOS DE LA ORDEN (Esta parte se mantiene) ---
-        string serviceTypeDisplay = _currentOrder.ServiceType;
-        if (serviceTypeDisplay == "TO_GO") serviceTypeDisplay = "Para Llevar";
-        if (serviceTypeDisplay == "DINE_IN") serviceTypeDisplay = "Comer Aquí";
-
+        // Info Orden
         g.DrawString($"Orden: #{_currentOrder.OrderId}", _bodyFont, _brush, MARGIN_LEFT, y);
-        // Usamos 'printableWidth' para alinear el tipo a la derecha
-        g.DrawString($"Tipo: {serviceTypeDisplay}", _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignRight);
-        y += 20;
+        string serv = _currentOrder.ServiceType == "DINE_IN" ? "Comer Aquí" : "Para Llevar";
+        g.DrawString(serv, _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 15), alignRight);
+        y += 12;
 
-        string fechaParaImprimir;
-        
-        // Si 'OrderDate' está vacía (es una venta NUEVA), usamos la hora actual.
-        if (string.IsNullOrEmpty(_currentOrder.OrderDate))
-        {
-            fechaParaImprimir = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
-        }
-        else
-        {
-            // Si 'OrderDate' SÍ tiene un valor (es REIMPRESIÓN o CIERRE), la usamos.
-            // La fecha de SQLite es "YYYY-MM-DD HH:MM:SS". La parseamos para reformatearla.
-            if (DateTime.TryParse(_currentOrder.OrderDate, out DateTime originalDate))
-            {
-                fechaParaImprimir = originalDate.ToString("dd/MM/yyyy HH:mm");
-            }
-            else
-            {
-                // Si falla el parseo, solo la imprimimos tal cual
-                fechaParaImprimir = _currentOrder.OrderDate;
-            }
-        }
-        
-        g.DrawString(fechaParaImprimir, _bodyFont, _brush, MARGIN_LEFT, y);
-        y += 20;
-        g.DrawString(new string('-', 50), _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
-        y += 20;
+        // Fecha
+        string fecha = DateTime.Now.ToString("dd/MM/yy HH:mm");
+        if(!string.IsNullOrEmpty(_currentOrder.OrderDate) && DateTime.TryParse(_currentOrder.OrderDate, out DateTime dt)) fecha = dt.ToString("dd/MM/yy HH:mm");
+        g.DrawString(fecha, _bodyFont, _brush, MARGIN_LEFT, y);
+        y += 15;
+        g.DrawString(new string('-', 40), _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 10), alignCenter);
+        y += 10;
 
-        // --- 7. DIBUJAR ENCABEZADO DE ITEMS (con Rectángulos) ---
-        g.DrawString("Cant.", _bodyFont, _brush, new RectangleF(xQty, y, colQtyWidth, 20), alignLeft);
-        g.DrawString("Descripción", _bodyFont, _brush, new RectangleF(xDesc, y, descWidth, 20), alignLeft);
-        if (!isKitchenTicket)
-        {
-            g.DrawString("Total", _bodyFont, _brush, new RectangleF(xTotal, y, colTotalWidth, 20), alignRight);
-        }
+        // Items
+        g.DrawString("Cant", _totalLabelFont, _brush, new RectangleF(xQty, y, colQtyWidth, 15), alignLeft);
+        g.DrawString("Descrip.", _totalLabelFont, _brush, new RectangleF(xDesc, y, descWidth, 15), alignLeft);
+        if(!isKitchen) g.DrawString("Total", _totalLabelFont, _brush, new RectangleF(xTotal, y, colTotalWidth, 15), alignRight);
         y += 15;
 
-
-        // --- 8. DIBUJAR ITEMS (con Rectángulos) ---
         foreach (var item in _currentOrder.Items)
         {
-            float startY_Item = y; // Guardamos la Y inicial del ítem
+            string name = item.Name + (!string.IsNullOrEmpty(item.VariantName) ? $" ({item.VariantName})" : "");
+            SizeF size = g.MeasureString(name, _bodyFont, (int)descWidth);
+            float h = Math.Max(15, size.Height);
 
-            // Formatear el nombre (Ej. "Pizza Hawaiana (Grande)")
-            string name = item.Name;
-            if (!string.IsNullOrEmpty(item.VariantName))
-            {
-                name += $" ({item.VariantName})";
-            }
+            g.DrawString(item.Quantity.ToString(), _bodyFont, _brush, new RectangleF(xQty, y, colQtyWidth, h), alignLeft);
+            g.DrawString(name, _bodyFont, _brush, new RectangleF(xDesc, y, descWidth, h), alignLeft);
+            if(!isKitchen) g.DrawString($"{(item.Quantity*item.Price):0.00}", _bodyFont, _brush, new RectangleF(xTotal, y, colTotalWidth, h), alignRight);
+            y += h;
 
-            // --- Calcular Altura ---
-            // Medimos cuánto espacio vertical ocupará la descripción (con auto-wrap)
-            SizeF descSize = g.MeasureString(name, _bodyFont, (int)descWidth);
-            float itemHeight = descSize.Height; // La altura base del ítem
-
-            // --- Dibujar Columnas ---
-            // Cantidad
-            g.DrawString(item.Quantity.ToString(), _bodyFont, _brush, new RectangleF(xQty, y, colQtyWidth, itemHeight), alignLeft);
-            
-            // Descripción (con auto-wrap)
-            g.DrawString(name, _bodyFont, _brush, new RectangleF(xDesc, y, descWidth, itemHeight), alignLeft);
-
-            // Total (si aplica)
-            if (!isKitchenTicket)
-            {
-                float itemTotal = item.Quantity * item.Price;
-                g.DrawString($"${itemTotal:N2}", _bodyFont, _brush, new RectangleF(xTotal, y, colTotalWidth, itemHeight), alignRight);
-            }
-            
-            // Avanzamos 'y' por la altura de la descripción
-            y += itemHeight;
-
-            // --- LÓGICA DE EXTRAS (Debajo del ítem) ---
-            if (item.Extras != null && item.Extras.Count > 0)
-            {
-                foreach (var extra in item.Extras)
-                {
-                    string extraLine = $"  + {extra.Quantity} {extra.Name}";
-                    // Medimos y dibujamos los extras, indentados
-                    SizeF extraSize = g.MeasureString(extraLine, _smallFont, (int)descWidth - 10);
-                    g.DrawString(extraLine, _smallFont, _brush, new RectangleF(xDesc + 10, y, descWidth - 10, extraSize.Height), alignLeft);
-                    y += extraSize.Height; // Avanzamos 'y' por cada extra
+            if(item.Extras != null) {
+                foreach(var ex in item.Extras) {
+                   string exTxt = $"+{ex.Quantity} {ex.Name}";
+                   SizeF exSize = g.MeasureString(exTxt, _smallFont, (int)descWidth);
+                   g.DrawString(exTxt, _smallFont, _brush, new RectangleF(xDesc+2, y, descWidth, exSize.Height), alignLeft);
+                   y += exSize.Height;
                 }
             }
+            y += 2;
+        }
+
+        g.DrawString(new string('-', 40), _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 10), alignCenter);
+        y += 10;
+
+        // Totales
+        if(isKitchen) {
+             g.DrawString("--- FIN ---", _titleFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
+        } else {
+            float lblW = 55; float valW = 75; float startX = printableWidth - lblW - valW;
             
-            y += 5; // Añadir un pequeño espacio después de cada ítem
-        }
+            g.DrawString("Subtotal:", _bodyFont, _brush, new RectangleF(startX, y, lblW, 15), alignRight);
+            g.DrawString($"${_currentOrder.Subtotal:0.00}", _bodyFont, _brush, new RectangleF(startX+lblW, y, valW, 15), alignRight);
+            y += 15;
 
-        // --- 9. DIBUJAR TOTALES Y PIE DE PÁGINA ---
-        g.DrawString(new string('-', 50), _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
-        y += 20;
+            if(_currentOrder.DiscountAmount > 0) {
+                g.DrawString("Desc:", _bodyFont, _brush, new RectangleF(startX, y, lblW, 15), alignRight);
+                g.DrawString($"-${_currentOrder.DiscountAmount:0.00}", _bodyFont, _brush, new RectangleF(startX+lblW, y, valW, 15), alignRight);
+                y += 15;
+            }
 
-        if (isKitchenTicket)
-        {
-            // Pie de página para COCINA
-            g.DrawString("--- FIN DE COMANDA ---", _titleFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
-        }
-        else
-        {
-            // Definir columnas para los totales (Etiqueta a la derecha, Valor a la derecha)
-            float xTotalLabel = MARGIN_LEFT;
-            float totalLabelWidth = printableWidth - colTotalWidth - 5; // El espacio restante
-            float xTotalValue = xTotalLabel + totalLabelWidth;
-
-            // Subtotal
-            g.DrawString("Subtotal:", _bodyFont, _brush, new RectangleF(xTotalLabel, y, totalLabelWidth, 20), alignRight);
-            g.DrawString($"${_currentOrder.Subtotal:N2}", _bodyFont, _brush, new RectangleF(xTotalValue, y, colTotalWidth, 20), alignRight);
-            y += 20;
-
-            // Descuento
-            g.DrawString("Descuento:", _bodyFont, _brush, new RectangleF(xTotalLabel, y, totalLabelWidth, 20), alignRight);
-            g.DrawString($"${_currentOrder.DiscountAmount:N2}", _bodyFont, _brush, new RectangleF(xTotalValue, y, colTotalWidth, 20), alignRight);
-            y += 20;
-
-            // TOTAL
-            g.DrawString("TOTAL:", _titleFont, _brush, new RectangleF(xTotalLabel, y, totalLabelWidth, 20), alignRight);
-            g.DrawString($"${_currentOrder.Total:N2}", _titleFont, _brush, new RectangleF(xTotalValue, y, colTotalWidth, 20), alignRight);
+            g.DrawString("TOTAL:", _titleFont, _brush, new RectangleF(startX, y, lblW, 20), alignRight);
+            g.DrawString($"${_currentOrder.Total:0.00}", _titleFont, _brush, new RectangleF(startX+lblW, y, valW, 20), alignRight);
             y += 30;
+            g.DrawString("¡Gracias por su compra!", _smallFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 15), alignCenter);
+        }
+        e.HasMorePages = false;
+    }
 
-            // Pie de página para VENTA
-            g.DrawString("¡Gracias por su compra!", _smallFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
+    // =========================================================
+    //  NUEVO: DISEÑO DEL CORTE DE CAJA
+    // =========================================================
+    private void PrintCutPage(object sender, PrintPageEventArgs e)
+    {
+        if (_currentOrder == null || e.Graphics == null) return;
+        Graphics g = e.Graphics;
+
+        float safeWidthMM = (PAPER_WIDTH_MM == 58) ? 48f : 72f;
+        float simulatedPaperWidth = (safeWidthMM / 25.4f) * 100;
+        float printableWidth = simulatedPaperWidth - MARGIN_LEFT - MARGIN_RIGHT;
+        float y = 5;
+
+        StringFormat alignCenter = new StringFormat { Alignment = StringAlignment.Center };
+        StringFormat alignLeft = new StringFormat { Alignment = StringAlignment.Near };
+        StringFormat alignRight = new StringFormat { Alignment = StringAlignment.Far };
+
+        // 1. ENCABEZADO
+        g.DrawString("=== CORTE DE CAJA ===", _titleFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
+        y += 20;
+        g.DrawString("PIZZERIA 'LIAM'", _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 15), alignCenter);
+        y += 20;
+        g.DrawString($"Fecha Impresión: {DateTime.Now:dd/MM/yy HH:mm}", _smallFont, _brush, MARGIN_LEFT, y);
+        y += 15;
+        
+        // El campo OrderDate en este caso trae el rango de fechas (ej: "2023-10-01 al 2023-10-01")
+        g.DrawString($"Periodo: {_currentOrder.OrderDate}", _bodyFont, _brush, MARGIN_LEFT, y);
+        y += 15;
+
+        g.DrawString(new string('=', 40), _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 10), alignCenter);
+        y += 15;
+
+        // 2. RESUMEN FINANCIERO
+        // Alineación manual
+        float labelW = printableWidth * 0.6f;
+        float valW = printableWidth * 0.4f;
+
+        // Subtotal
+        g.DrawString("Ventas Brutas:", _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, labelW, 15), alignLeft);
+        g.DrawString($"${_currentOrder.Subtotal:0.00}", _bodyFont, _brush, new RectangleF(MARGIN_LEFT + labelW, y, valW, 15), alignRight);
+        y += 15;
+
+        // Descuentos
+        g.DrawString("Descuentos:", _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, labelW, 15), alignLeft);
+        g.DrawString($"-${_currentOrder.DiscountAmount:0.00}", _bodyFont, _brush, new RectangleF(MARGIN_LEFT + labelW, y, valW, 15), alignRight);
+        y += 15;
+
+        g.DrawString(new string('-', 40), _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 10), alignCenter);
+        y += 10;
+
+        // TOTAL NETO
+        g.DrawString("VENTA TOTAL:", _titleFont, _brush, new RectangleF(MARGIN_LEFT, y, labelW, 20), alignLeft);
+        g.DrawString($"${_currentOrder.Total:0.00}", _titleFont, _brush, new RectangleF(MARGIN_LEFT + labelW, y, valW, 20), alignRight);
+        y += 25;
+
+        // 3. ESTADÍSTICAS EXTRA (Usamos la lista de Items para pasar datos extra si los hay)
+        if (_currentOrder.Items != null && _currentOrder.Items.Count > 0)
+        {
+            foreach(var stat in _currentOrder.Items)
+            {
+                // Usamos el campo 'Name' como etiqueta y 'Quantity' como valor numérico
+                g.DrawString(stat.Name + ":", _bodyFont, _brush, new RectangleF(MARGIN_LEFT, y, labelW, 15), alignLeft);
+                g.DrawString(stat.Quantity.ToString(), _bodyFont, _brush, new RectangleF(MARGIN_LEFT + labelW, y, valW, 15), alignRight);
+                y += 15;
+            }
         }
 
+        y += 20;
+        g.DrawString("--- FIN DEL CORTE ---", _smallFont, _brush, new RectangleF(MARGIN_LEFT, y, printableWidth, 20), alignCenter);
+        
         e.HasMorePages = false;
     }
 }

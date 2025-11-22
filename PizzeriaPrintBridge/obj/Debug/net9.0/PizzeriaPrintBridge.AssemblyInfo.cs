@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PizzeriaPrintBridge")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+27c247c47d3f09fb4190d96268d814e884138801")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a41fb70bedafe34d250d968bc4d24f85e4d5e35c")]
 [assembly: System.Reflection.AssemblyProductAttribute("PizzeriaPrintBridge")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PizzeriaPrintBridge")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

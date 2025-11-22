@@ -13,6 +13,8 @@ require_once CONTROLLER_PATH . '/OrderController.php';
 require_once CONTROLLER_PATH . '/CategoryController.php';
 require_once CONTROLLER_PATH . '/ExtrasController.php';
 require_once CONTROLLER_PATH . '/ProductController.php';
+require_once CONTROLLER_PATH . '/ReportsController.php';
+require_once CONTROLLER_PATH . '/UserController.php';
 
 
 // ----------------------------------------------------
@@ -137,6 +139,28 @@ try {
             } else {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Endpoint de Extras no encontrado']);
+            }
+            break;
+        case 'reports':
+            $controller = new ReportsController();
+            if ($method_name === 'sales') {
+                // URL: /api/reports/sales
+                $controller->getSales();
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de Reports no encontrado']);
+            }
+            break;
+        case 'users':
+            $controller = new UserController();
+            if ($method_name === 'list') $controller->list();
+            elseif ($method_name === 'get') $controller->get();
+            elseif ($method_name === 'create') $controller->create();
+            elseif ($method_name === 'update') $controller->update();
+            elseif ($method_name === 'delete') $controller->delete();
+            else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint no encontrado']);
             }
             break;
 

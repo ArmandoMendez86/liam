@@ -19,8 +19,7 @@ class PosController
             $stmt_categories = $pdo->query("SELECT id, name FROM categories ORDER BY sort_order");
             $categories = $stmt_categories->fetchAll();
 
-            // 2. Obtener todos los productos base
-            $stmt_products = $pdo->query("SELECT id, category_id, name, description FROM products");
+            $stmt_products = $pdo->query("SELECT id, category_id, name, description, allows_pizza_split, flavor_options, soda_options, combo_wings_options FROM products");
             $products = $stmt_products->fetchAll();
 
             // 3. Obtener todas las variantes (precios y opciones)
